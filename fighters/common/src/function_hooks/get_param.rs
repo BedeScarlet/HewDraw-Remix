@@ -4,16 +4,21 @@ use globals::*;
 use skyline::hooks::{getRegionAddress, Region, InlineCtx};
 use utils::game_modes::CustomMode;
 
+
 pub fn install() {
     skyline::install_hooks!(
         //get_offset,
         //get_inline_offset,
-        get_param_int_hook,
-        get_param_float_hook,
+        //get_param_int_hook,
+        //get_param_float_hook,
         //get_item_backtrace_inline,
+        get_param_int_hook_HDR,
+        get_param_float_hook_HDR
     );
     //skyline::nro::add_hook(item_nro_hook);
 }
+
+const DEFAULT_SLOTS: vec![0,1,2,3,4,5,6,7];
 
 // #[skyline::hook(offset=0x720540)]
 // unsafe fn get_offset(arg0: u64, arg1: u64) {
@@ -34,9 +39,10 @@ pub fn install() {
 //     }
 // }
 
-#[skyline::hook(offset=0x4E53A0)]
-pub unsafe fn get_param_int_hook(x0: u64, x1: u64, x2 :u64) -> i32 {
-    let mut boma = *((x0 as *mut u64).offset(1)) as *mut BattleObjectModuleAccessor;
+// #[skyline::hook(offset=0x4E53A0)]
+// param_config: get_param_int_hook
+pub unsafe fn get_param_int_hook_HDR() {
+    let mut boma = &mut BattleObjectModuleAccessor;
     let boma_reference = &mut *boma;
     let fighter_kind = boma_reference.kind();
     let id = WorkModule::get_int(boma, *FIGHTER_INSTANCE_WORK_ID_INT_ENTRY_ID) as usize;
@@ -46,42 +52,56 @@ pub unsafe fn get_param_int_hook(x0: u64, x1: u64, x2 :u64) -> i32 {
         match utils::game_modes::get_custom_mode() {
             Some(modes) => {
                 if modes.contains(&CustomMode::Smash64Mode) {
-                    if x1 == hash40("landing_heavy_frame") {
-                        return 4;
-                    }
+                    //if x1 == hash40("landing_heavy_frame") {
+                        //return 4;
+                        param_config::update_int_2(fighter_kind, DEFAULT_SLOTS, hash40("landing_heavy_frame"), 0 as u64, 4);
+                    //}
                 }
             },
             _ => {}
         }
 
-        if x2 == hash40("just_shield_precede_extension") {
-            return 1000;
-        }
+        // seems like param_config can't change global params like common.prc, etc. either that or im really stupid (likely)
+        // if it's possible, restore this
+
+        //if x2 == hash40("just_shield_precede_extension") {
+            //return 1000;
+            //param_config::update_int_2(fighter_kind, DEFAULT_SLOTS, 0 as u64, hash40("just_shield_precede_extension"), 1000);
+        //}
     
-        if x2 == hash40("continue_just_shield_count") {
+        //if x2 == hash40("continue_just_shield_count") {
     
-        }
+        //}
     
         if fighter_kind == *FIGHTER_KIND_RYU {
-            if VarModule::is_flag(boma_reference.object(), vars::shotos::instance::EX_SPECIAL_USED) && x1 == hash40("param_special_s") && (x2 == hash40("loop_num_w") || x2 == hash40("loop_num_m") || x2 == hash40("loop_num_s") || x2 == hash40("loop_num_w") || x2 == hash40("air_loop_num_m") || x2 == hash40("air_air_loop_num_s")) {
-                return 3;
+            if VarModule::is_flag(boma_reference.object(), vars::shotos::instance::EX_SPECIAL_USED){ // && x1 == hash40("param_special_s") && (x2 == hash40("loop_num_w") || x2 == hash40("loop_num_m") || x2 == hash40("loop_num_s") || x2 == hash40("loop_num_w") || x2 == hash40("air_loop_num_m") || x2 == hash40("air_air_loop_num_s")) {
+                //return 3;
+                param_config::update_int_2(fighter_kind, DEFAULT_SLOTS, hash40("param_special_s"), hash40("loop_num_w"), 3);
+                param_config::update_int_2(fighter_kind, DEFAULT_SLOTS, hash40("param_special_s"), hash40("loop_num_m"), 3);
+                param_config::update_int_2(fighter_kind, DEFAULT_SLOTS, hash40("param_special_s"), hash40("loop_num_s"), 3);
+                param_config::update_int_2(fighter_kind, DEFAULT_SLOTS, hash40("param_special_s"), hash40("air_loop_num_m"), 3);
+                param_config::update_int_2(fighter_kind, DEFAULT_SLOTS, hash40("param_special_s"), hash40("air_air_loop_num_s"), 3);
             }
         }
 
         else if fighter_kind == *FIGHTER_KIND_PACKUN {
             if boma_reference.is_motion(Hash40::new("special_hi"))
             && !boma_reference.is_prev_situation(*SITUATION_KIND_AIR)
-            && x1 == hash40("param_special_hi")
-            && x2 == hash40("start_no_landing_frame") {
-                return 999;
+            //&& x1 == hash40("param_special_hi")
+            //&& x2 == hash40("start_no_landing_frame") 
+            {
+                //return 999;
+                param_config::update_int_2(fighter_kind, DEFAULT_SLOTS, hash40("param_special_hi"), hash40("start_no_landing_frame"), 999);
             }
         }
 
         else if fighter_kind == *FIGHTER_KIND_KROOL {
-            if x1 == hash40("param_special_n")
-            && x2 == hash40("special_n_suction_frame_min")
-            && VarModule::is_flag(boma_reference.object(), vars::krool::instance::SPECIAL_N_GRAB) {
-                return 30;
+            if 
+            // x1 == hash40("param_special_n")
+            // && x2 == hash40("special_n_suction_frame_min") && 
+            VarModule::is_flag(boma_reference.object(), vars::krool::instance::SPECIAL_N_GRAB) {
+                //return 30;
+                param_config::update_int_2(fighter_kind, DEFAULT_SLOTS, hash40("param_special_n"), hash40("special_n_suction_frame_min"), 30);
             }
         }
 
@@ -94,11 +114,12 @@ pub unsafe fn get_param_int_hook(x0: u64, x1: u64, x2 :u64) -> i32 {
 
         if fighter_kind == *WEAPON_KIND_PACKUN_SPIKEBALL {
             if VarModule::is_flag(boma_reference.object(), vars::packun_spikeball::instance::ENABLE_EXPLODE) {
-                if x1 == hash40("param_spikeball") { 
-                    if x2 == hash40("hop_life") {
-                        return 105;
-                    }
-                }
+                //if x1 == hash40("param_spikeball") { 
+                    //if x2 == hash40("hop_life") {
+                        //return 105;
+                        param_config::update_int_2(fighter_kind, DEFAULT_SLOTS, hash40("param_spikeball"), hash40("hop_life"), 105);
+                    //}
+                //}
             }
             // else if VarModule::get_int(owner_module_accessor.object(), vars::packun::instance::CURRENT_STANCE) == 2 {
             //     if x1 == hash40("param_spikeball") { 
@@ -112,19 +133,21 @@ pub unsafe fn get_param_int_hook(x0: u64, x1: u64, x2 :u64) -> i32 {
         else if fighter_kind == *WEAPON_KIND_LUCARIO_AURABALL {
             if x1 == hash40("param_auraball") {
                 if VarModule::is_flag(boma_reference.object(), vars::lucario::instance::IS_POWERED_UP) {
-                    if x2 == hash40("life") {
-                        return 180;
-                    }
+                    //if x2 == hash40("life") {
+                        //return 180;
+                        param_config::update_int_2(fighter_kind, DEFAULT_SLOTS, hash40("life"), 0 as u64, 180);
+                    //}
                 }
             }
         }
     }
 
-    original!()(x0, x1, x2)
+    // original!()(x0, x1, x2)
 }
 
-#[skyline::hook(offset=0x4E53E0)]
-pub unsafe fn get_param_float_hook(x0 /*boma*/: u64, x1 /*param_type*/: u64, x2 /*param_hash*/: u64) -> f32 {
+// #[skyline::hook(offset=0x4E53E0)]
+// param_config: get_param_float_hook
+pub unsafe fn get_param_float_hook_HDR(/*x0 /*boma*/: u64, x1 /*param_type*/: u64, x2 /*param_hash*/: u64*/)/*  -> f32 */{
     let mut boma = *((x0 as *mut u64).offset(1)) as *mut BattleObjectModuleAccessor;
     let boma_reference = &mut *boma;
     let fighter_kind = boma_reference.kind();
@@ -135,57 +158,68 @@ pub unsafe fn get_param_float_hook(x0 /*boma*/: u64, x1 /*param_type*/: u64, x2 
         match utils::game_modes::get_custom_mode() {
             Some(modes) => {
                 if modes.contains(&CustomMode::Smash64Mode) {
-                    if x2 == hash40("shield_setoff_add") {
-                        return 4.0;
-                    }
+                    //if x2 == hash40("shield_setoff_add") {
+                    //    return 4.0;
+                    //} /*Restore eventually*/
             
-                    if x2 == hash40("shield_setoff_mul") {
-                        return 1.62;
-                    }
+                    //if x2 == hash40("shield_setoff_mul") {
+                    //    return 1.62;
+                    //} /*Restore eventually*/
+                    
+                    param_config::update_attribute_mul_2(fighter_kind, DEFAULT_SLOTS, hash40("air_speed_y_stable"), 0 as u64, 0.8);
+                    //if x1 == hash40("air_speed_y_stable") {
+                        //return original!()(x0, x1, x2) * 0.8;
+                    //}
             
-                    if x1 == hash40("air_speed_y_stable") {
-                        return original!()(x0, x1, x2) * 0.8;
-                    }
+                    param_config::update_attribute_mul_2(fighter_kind, DEFAULT_SLOTS, hash40("air_accel_y"), 0 as u64, 0.8);
+                    //if x1 == hash40("air_accel_y") {
+                        //return original!()(x0, x1, x2) * 0.8;
+                    //}
             
-                    if x1 == hash40("air_accel_y") {
-                        return original!()(x0, x1, x2) * 0.8;
-                    }
+                    param_config::update_attribute_mul_2(fighter_kind, DEFAULT_SLOTS, hash40("damage_fly_top_air_accel_y"), 0 as u64, 0.8);
+                    //if x1 == hash40("damage_fly_top_air_accel_y") {
+                        //return original!()(x0, x1, x2) * 0.8;
+                    //}
             
-                    if x1 == hash40("damage_fly_top_air_accel_y") {
-                        return original!()(x0, x1, x2) * 0.8;
-                    }
+                    param_config::update_attribute_mul_2(fighter_kind, DEFAULT_SLOTS, hash40("damage_fly_top_speed_y_stable"), 0 as u64, 0.8);
+                    //if x1 == hash40("damage_fly_top_speed_y_stable") {
+                        //return original!()(x0, x1, x2) * 0.8;
+                    //}
             
-                    if x1 == hash40("damage_fly_top_speed_y_stable") {
-                        return original!()(x0, x1, x2) * 0.8;
-                    }
+                    param_config::update_attribute_mul_2(fighter_kind, DEFAULT_SLOTS, hash40("dive_speed_y"), 0 as u64, 0.8);
+                    //if x1 == hash40("dive_speed_y") {
+                    //    return original!()(x0, x1, x2) * 0.8;
+                    //}
             
-                    if x1 == hash40("dive_speed_y") {
-                        return original!()(x0, x1, x2) * 0.8;
-                    }
+                    param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("landing_frame"), 0 as u64, 4.0);
+                    //if x1 == hash40("landing_frame") {
+                    //    return 4.0;
+                    //}
             
-                    if x1 == hash40("landing_frame") {
-                        return 4.0;
-                    }
+                    param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("landing_attack_air_frame_n"), 0 as u64, 4.0);
+                    //if x1 == hash40("landing_attack_air_frame_n") {
+                    //    return 4.0;
+                    //}
+                    
+                    param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("landing_attack_air_frame_f"), 0 as u64, 4.0);
+                    //if x1 == hash40("landing_attack_air_frame_f") {
+                    //    return 4.0;
+                    //}
             
-                    if x1 == hash40("landing_attack_air_frame_n") {
-                        return 4.0;
-                    }
-            
-                    if x1 == hash40("landing_attack_air_frame_f") {
-                        return 4.0;
-                    }
-            
-                    if x1 == hash40("landing_attack_air_frame_b") {
-                        return 4.0;
-                    }
-            
-                    if x1 == hash40("landing_attack_air_frame_hi") {
-                        return 4.0;
-                    }
-            
-                    if x1 == hash40("landing_attack_air_frame_lw") {
-                        return 4.0;
-                    }
+                    param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("landing_attack_air_frame_b"), 0 as u64, 4.0);
+                    //if x1 == hash40("landing_attack_air_frame_b") {
+                    //    return 4.0;
+                    //}
+                    
+                    param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("landing_attack_air_frame_hi"), 0 as u64, 4.0);
+                    //if x1 == hash40("landing_attack_air_frame_hi") {
+                    //    return 4.0;
+                    //}
+                    
+                    param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("landing_attack_air_frame_lw"), 0 as u64, 4.0);
+                    //if x1 == hash40("landing_attack_air_frame_lw") {
+                    //    return 4.0;
+                    //}
                 }
             },
             _ => {}
@@ -208,34 +242,42 @@ pub unsafe fn get_param_float_hook(x0 /*boma*/: u64, x1 /*param_type*/: u64, x2 
         */
 
         // handle reduction of the tumble threshold for DK when in barrel carry
-        if x2 == hash40("damage_level3") 
-        && boma_reference.kind() == *FIGHTER_KIND_DONKEY
+        if 
+        // x2 == hash40("damage_level3") && 
+        boma_reference.kind() == *FIGHTER_KIND_DONKEY
          {
             let status = boma_reference.status();
 
             // if you are in any of the FIGHTER_DONKEY_STATUS_KIND_SUPER_LIFT_* statuses,
             // reduce the dumble threshold.
             if status >= 481 && status <= 489 {
-                return original!()(x0, x1, x2) * 0.5;
+                param_config::update_attribute_mul_2(fighter_kind, DEFAULT_SLOTS, hash40("damage_level3"), 0 as u64, 0.5);
+                //return original!()(x0, x1, x2) * 0.5;
             }
         }
 
         // Coupled with "landing_heavy" change in change_motion hook
         // Because we start heavy landing anims on f3 rather than f1, we need to push back the heavy landing FAF by 2 frames so it is accurate to the defined per-character param
-        if x1 == hash40("landing_frame") {
-            return original!()(x0, hash40("landing_frame"), 0) + 2.0;
-        }
+        
+        
+        //if x1 == hash40("landing_frame") {
+            //return original!()(x0, hash40("landing_frame"), 0) + 2.0;
+        //}
+        // does this work? lol
+        param_config::update_attribute_mul_2(fighter_kind, DEFAULT_SLOTS, hash40("landing_frame"), 0 as u64, 1.0) + 2.0;
 
         // Ken aerial hadouken modified offsets for aerial version
-        else if fighter_kind == *FIGHTER_KIND_KEN {
+        if fighter_kind == *FIGHTER_KIND_KEN {
             if VarModule::is_flag(boma_reference.object(), vars::shotos::instance::SPECIAL_N_HADOKEN_AIR) {
-                if x1 == hash40("param_special_n") {
-                    if x2 == hash40("shoot_x") {
-                        return 11.0;
-                    } else if x2 == hash40("shoot_y") {
-                        return 6.0;
-                    }
-                }
+                param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_special_n"), hash40("shoot_x"), 11.0);
+                param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_special_n"), hash40("shoot_y"), 6.0);
+                i//f x1 == hash40("param_special_n") {
+                    //if x2 == hash40("shoot_x") {
+                        //return 11.0;
+                    //} else if x2 == hash40("shoot_y") {
+                        //return 6.0;
+                    //}
+                //}
             }
         }
         
@@ -243,63 +285,92 @@ pub unsafe fn get_param_float_hook(x0 /*boma*/: u64, x1 /*param_type*/: u64, x2 
             //if MotionModule::motion_kind(&mut *boma) == hash40("special_hi1") || MotionModule::motion_kind(&mut *boma) == hash40("special_hi1_start"){
             if StatusModule::situation_kind(&mut *boma) == *SITUATION_KIND_GROUND{
                 //println!("Stone");
-                if x1 == hash40("param_special_hi") && x2 == hash40("hi1_jump_speed_mul") {
+                param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_special_hi"), hash40("hi1_jump_speed_mul"), 0.65);
+                //if x1 == hash40("param_special_hi") && x2 == hash40("hi1_jump_speed_mul") {
                     //println!("Scabbard");
-                    return 0.65;
-                }
+                    //return 0.65;
+                //}
             }
-            if x1 == hash40("param_special_hi"){
+            //if x1 == hash40("param_special_hi"){
                 //if heavy_attack[hdr::get_player_number(owner_module_accessor)]{
                 if VarModule::is_flag(boma_reference.object(), vars::common::instance::IS_HEAVY_ATTACK){
-                    if x2 == hash40("hi2_rush_speed") {
-                        return 3.0;
-                    }
+                    param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_special_hi"), hash40("hi2_rush_speed"), 3.0);
+                    //if x2 == hash40("hi2_rush_speed") {
+                        //return 3.0;
+                    //}
                 }
-            }
-            else if x1 == hash40("param_private") {
-                if x2 == hash40("final_wave_speed") {
+            //}
+            else 
+            //if x1 == hash40("param_private") {
+                //if x2 == hash40("final_wave_speed") {
                     if VarModule::is_flag(boma_reference.object(), vars::miiswordsman::status::SPECIAL_N1_WAVE) {
-                        return 2.0;
+                        param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_private"), hash40("final_wave_speed"), 2.0);
+                        //return 2.0;
                     }
-                }
-                else if x2 == hash40("final_wave_scale_max") {
+                //}
+                else //if x2 == hash40("final_wave_scale_max") {
                     if VarModule::is_flag(boma_reference.object(), vars::miiswordsman::status::SPECIAL_N1_WAVE) {
-                        return 0.5;
+                        param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_private"), hash40("final_wave_scale_max"), 5.0);
+                        //return 0.5;
                     }
-                }
+                //}
             }
         }
         	
         else if fighter_kind == *FIGHTER_KIND_PFUSHIGISOU {
             //println!("Ivysaur");
-            if x1 == hash40("param_special_s") && x2 == hash40("shoot_angle") {
+            param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_special_s"), hash40("shoot_angle"), ControlModule::get_stick_y(boma) * 25.0);
+            //if x1 == hash40("param_special_s") && x2 == hash40("shoot_angle") {
                 //println!("Razor angle");
-                return ControlModule::get_stick_y(boma) * 25.0;
-            }
+                //return ControlModule::get_stick_y(boma) * 25.0;
+            //}
         }
         
         else if fighter_kind == *FIGHTER_KIND_MIIGUNNER {
-            if x1 == hash40("param_special_hi") && x2 == hash40("hi1_first_jump_y_speed") {
-                return 3.5 + (2.7 * VarModule::get_float(boma_reference.object(), vars::miigunner::status::ATTACK_CHARGE)) / 29.0;
-            }
+            param_config::update_float_2(
+                fighter_kind, 
+                DEFAULT_SLOTS, 
+                hash40("param_special_hi"), 
+                hash40("hi1_first_jump_y_speed"), 
+                3.5 + (2.7 * VarModule::get_float(boma_reference.object(), vars::miigunner::status::ATTACK_CHARGE)) / 29.0
+            );
+            //if x1 == hash40("param_special_hi") && x2 == hash40("hi1_first_jump_y_speed") {
+                //return 3.5 + (2.7 * VarModule::get_float(boma_reference.object(), vars::miigunner::status::ATTACK_CHARGE)) / 29.0;
+            //}
         }
 
         else if fighter_kind == *FIGHTER_KIND_SHEIK {
-            if x1 == hash40("param_special_s") {
-                if x2 == hash40("throw_angle") {
-                    return 30.0 + ControlModule::get_stick_y(boma) * 20.0;
-                }
-                if x2 == hash40("throw_speed") {
-                    return 3.5 - ControlModule::get_stick_y(boma) * 0.5;
-                }
-            }
+            param_config::update_float_2(
+                fighter_kind, 
+                DEFAULT_SLOTS, 
+                hash40("param_special_s"), 
+                hash40("throw_angle"), 
+                30.0 + ControlModule::get_stick_y(boma) * 20.0
+            );
+            param_config::update_float_2(
+                fighter_kind, 
+                DEFAULT_SLOTS, 
+                hash40("param_special_s"), 
+                hash40("throw_speed"), 
+                3.5 - ControlModule::get_stick_y(boma) * 0.5
+            );
+            //if x1 == hash40("param_special_s") {
+                //if x2 == hash40("throw_angle") {
+                    //return 30.0 + ControlModule::get_stick_y(boma) * 20.0;
+                //}
+                //if x2 == hash40("throw_speed") {
+                    //return 3.5 - ControlModule::get_stick_y(boma) * 0.5;
+                //}
+            //}
         }
 
         else if fighter_kind == *FIGHTER_KIND_DAISY {
             if x1 == hash40("param_special_s") {
-                if x2 == hash40("special_s_jump_dec_accel_y")
-                && VarModule::is_flag(boma_reference.object(), vars::daisy::instance::SPECIAL_S_GROUND_START) {
-                    return 0.05;
+                if 
+                // x2 == hash40("special_s_jump_dec_accel_y") && 
+                VarModule::is_flag(boma_reference.object(), vars::daisy::instance::SPECIAL_S_GROUND_START) {
+                    param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_special_s"), hash40("special_s_jump_dec_accel_y"), 0.05);
+                    //return 0.05;
                 }
             }
         }
@@ -355,42 +426,54 @@ pub unsafe fn get_param_float_hook(x0 /*boma*/: u64, x1 /*param_type*/: u64, x2 
         //     }
         // }
         else if fighter_kind == *FIGHTER_KIND_DIDDY {
-            if x1 == hash40("param_special_hi") {
-                if x2 == hash40("special_hi_jet_ang_f_max") {
+            //if x1 == hash40("param_special_hi") {
+                //if x2 == hash40("special_hi_jet_ang_f_max") {
                     if WorkModule::get_int(boma, *FIGHTER_DIDDY_STATUS_SPECIAL_HI_WORK_INT_SITUATION) == *SITUATION_KIND_GROUND {
-                        return 5.0;
+                        param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_special_hi"), hash40("special_hi_jet_ang_f_max"), 5.0);
+                        //return 5.0;
                     }
-                }
-            }
+                //}
+            //}
         }
 
         else if fighter_kind == *FIGHTER_KIND_LUCARIO {
-            if x1 == hash40("param_special_hi")
-            && x2 == hash40("rush_speed") {
+            //if x1 == hash40("param_special_hi")
+            //&& x2 == hash40("rush_speed") {
                 let rate = VarModule::get_float(boma_reference.object(), vars::lucario::instance::SPECIAL_HI_MOTION_RATE);
                 if rate > 0.0 {
-                    let original = original!()(x0, x1, x2);
-                    return original * rate;
+                    param_config::update_attribute_mul_2(fighter_kind, DEFAULT_SLOTS, hash40("param_special_hi"), hash40("rush_speed"), rate);
+                    //let original = original!()(x0, x1, x2);
+                    //return original * rate;
                 }
-            } 
+            //} 
         }
     
-    }
+    
     else if boma_reference.is_weapon() {
 
         // For articles
         let owner_module_accessor = &mut *sv_battle_object::module_accessor((WorkModule::get_int(boma, *WEAPON_INSTANCE_WORK_ID_INT_LINK_OWNER)) as u32);
 
         if fighter_kind == *WEAPON_KIND_SNAKE_TRENCHMORTAR_BULLET {
-            if x1 == hash40("param_trenchmortarbullet") && x2 == hash40("speed_x") {
-                return ControlModule::get_stick_x(boma) / 1.5 * PostureModule::lr(boma);
-            }
+            param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, 
+                hash40("param_trenchmortarbullet"), 
+                hash40("speed_x"), 
+                ControlModule::get_stick_x(boma) / 1.5 * PostureModule::lr(boma)
+            );
+            //if x1 == hash40("param_trenchmortarbullet") && x2 == hash40("speed_x") {
+                //return ControlModule::get_stick_x(boma) / 1.5 * PostureModule::lr(boma);
+            //}
         }
 
         else if fighter_kind == *WEAPON_KIND_DEDEDE_GORDO {
-            if x1 == hash40("param_gordo") && x2 == hash40("shot_start_angle"){
-                return 20.0 * ControlModule::get_stick_y(owner_module_accessor);
-            }
+            param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, 
+                hash40("param_gordo"), 
+                hash40("shot_start_angle"), 
+                20.0 * ControlModule::get_stick_y(owner_module_accessor)
+            );
+            //if x1 == hash40("param_gordo") && x2 == hash40("shot_start_angle"){
+                //return 20.0 * ControlModule::get_stick_y(owner_module_accessor);
+            //}
         }
 
         // Frieza death ball on M2 aerial Shadow Ball
@@ -406,39 +489,54 @@ pub unsafe fn get_param_float_hook(x0 /*boma*/: u64, x1 /*param_type*/: u64, x2 
         }
         */
         else if fighter_kind == *WEAPON_KIND_PICKEL_FISHINGROD{
-            if x1 == hash40("param_fishingrod"){
-                if x2 == hash40("shoot_angle"){
+            //if x1 == hash40("param_fishingrod"){
+                //if x2 == hash40("shoot_angle"){
                     if ControlModule::get_stick_y(owner_module_accessor) < 0.0{
-                        return 48.0 + (ControlModule::get_stick_y(owner_module_accessor) * 30.0);
+                        param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, 
+                            hash40("param_fishingrod"), 
+                            hash40("shoot_angle"), 
+                            48.0 + (ControlModule::get_stick_y(owner_module_accessor) * 30.0)
+                    );
+                        //return 48.0 + (ControlModule::get_stick_y(owner_module_accessor) * 30.0);
                     }
                     else{
-                        return 48.0;
+                        param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, 
+                            hash40("param_fishingrod"), 
+                            hash40("shoot_angle"), 
+                            48.0
+                        );
+                        //return 48.0;
                     }
-                }
-            }
+                //}
+            //}
         }
         else if fighter_kind == *WEAPON_KIND_MIISWORDSMAN_TORNADOSHOT {
-            if x1 == hash40("param_tornadoshot"){
-                if x2 == hash40("life") {
+            //if x1 == hash40("param_tornadoshot"){
+                //if x2 == hash40("life") {
                     //if heavy_attack[hdr::get_player_number(owner_module_accessor)]{
                     if VarModule::is_flag(owner_module_accessor.object(), vars::common::instance::IS_HEAVY_ATTACK){
-                        return 70.0;
+                        param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_tornadoshot"), hash40("life"), 70.0);
+                        param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_tornadoshot"), hash40("speed_x"), 1.5);
+                        param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_tornadoshot"), hash40("accel_x"), -0.025);
+                        //return 70.0;
                     }
                 }
-                else if x2 == hash40("speed_x") {
+                //else if x2 == hash40("speed_x") {
                     //if heavy_attack[hdr::get_player_number(owner_module_accessor)]{
-                    if VarModule::is_flag(owner_module_accessor.object(), vars::common::instance::IS_HEAVY_ATTACK){
-                        return 1.5;
-                    }
-                }
-                else if x2 == hash40("accel_x") {
+                    //else if VarModule::is_flag(owner_module_accessor.object(), vars::common::instance::IS_HEAVY_ATTACK){
+                        
+                        //return 1.5;
+                    //}
+                //}
+                //else if x2 == hash40("accel_x") {
                     //if heavy_attack[hdr::get_player_number(owner_module_accessor)]{
-                    if VarModule::is_flag(owner_module_accessor.object(), vars::common::instance::IS_HEAVY_ATTACK){
-                        return -0.025;
-                    }
-                }
-            }
-        }
+                    //else if VarModule::is_flag(owner_module_accessor.object(), vars::common::instance::IS_HEAVY_ATTACK){
+                        
+                        //return -0.025;
+                    //}
+                //}
+            //}
+        //}
     
         // else if fighter_kind == *WEAPON_KIND_MIIGUNNER_GRENADELAUNCHER {
         //     if x1 == hash40("param_grenadelauncher") {
@@ -451,71 +549,88 @@ pub unsafe fn get_param_float_hook(x0 /*boma*/: u64, x1 /*param_type*/: u64, x2 
 
         else if fighter_kind == *WEAPON_KIND_PACKUN_SPIKEBALL {
             if VarModule::is_flag(boma_reference.object(), vars::packun_spikeball::instance::ENABLE_EXPLODE) {
-                if x1 == hash40("param_spikeball") {
-                    if x2 == hash40("hop_speed_x") {
-                        return 0.0;
-                    }
-                    else if x2 == hash40("hop_speed_y") {
-                        return 0.0;
-                    }
-                    else if x2 == hash40("hop_clear_attack_speed") && MotionModule::motion_kind(boma_reference) == hash40("explode") {
-                        return -0.1;
-                    }
+                param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_spikeball"), hash40("hop_speed_x"), 0.0);
+                param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_spikeball"), hash40("hop_speed_y"), 0.0);
+                if MotionModule::motion_kind(boma_reference) == hash40("explode") {
+                    param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_spikeball"), hash40("hop_clear_attack_speed"), -0.1);
                 }
+                //if x1 == hash40("param_spikeball") {
+                    //if x2 == hash40("hop_speed_x") {
+                        //return 0.0;
+                    //}
+                    //else if x2 == hash40("hop_speed_y") {
+                        //return 0.0;
+                    //}
+                    //else if x2 == hash40("hop_clear_attack_speed") && MotionModule::motion_kind(boma_reference) == hash40("explode") {
+                        //return -0.1;
+                    //}
+                //}
             }
             else if VarModule::get_int(owner_module_accessor.object(), vars::packun::instance::CURRENT_STANCE) == 2 {
-                if x1 == hash40("param_spikeball") {
-                    if x2 == hash40("shoot_speed_x_max") {
-                        return 1.5;
-                    }
-                    else if x2 == hash40("shoot_speed_y_max") {
-                        return 1.3;
-                    }
-                    else if x2 == hash40("shoot_speed_x_min") {
-                        return 0.5;
-                    }
-                    else if x2 == hash40("shoot_speed_y_min") {
-                        return 0.4;
-                    }
-                }
+                param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_spikeball"), hash40("shoot_speed_x_max"), 1.5);
+                param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_spikeball"), hash40("shoot_speed_y_max"), 1.3);
+                param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_spikeball"), hash40("shoot_speed_x_min"), 0.5);
+                param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_spikeball"), hash40("shoot_speed_y_min"), 0.4);
+                //if x1 == hash40("param_spikeball") {
+                //    if x2 == hash40("shoot_speed_x_max") {
+                //        return 1.5;
+                //    }
+                //    else if x2 == hash40("shoot_speed_y_max") {
+                //        return 1.3;
+                //   }
+                //    else if x2 == hash40("shoot_speed_x_min") {
+                //        return 0.5;
+                //    }
+                //    else if x2 == hash40("shoot_speed_y_min") {
+                //        return 0.4;
+                //    }
+                //}
             }
         }
 
         else if fighter_kind == *WEAPON_KIND_LUCARIO_AURABALL {
-            if x1 == hash40("param_auraball") {
+            //if x1 == hash40("param_auraball") {
                 if VarModule::is_flag(boma_reference.object(), vars::lucario::instance::IS_POWERED_UP) {
+                    param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_auraball"), hash40("min_speed"), 0.7);
+                    param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_auraball"), hash40("max_speed"), 0.7);
                     // if x2 == hash40("attack_mul") {
                     //     return 1.0;
                     // }
                     // if x2 == hash40("angle") {
                     //     return VarModule::get_float(boma_reference.object(), vars::lucario::status::SPECIAL_N_ANGLE);
                     // }
-                    if x2 == hash40("min_speed") {
-                        return 0.7;
-                    }
-                    if x2 == hash40("max_speed") {
-                        return 0.7;
-                    }
+                    //if x2 == hash40("min_speed") {
+                    //    return 0.7;
+                    //}
+                    //if x2 == hash40("max_speed") {
+                    //    return 0.7;
+                    //}
                 }
-            }
+            //}
         }
 
         else if fighter_kind == *WEAPON_KIND_RICHTER_AXE {
-            if x1 == hash40("param_axe") {
-                if (&[
-                    hash40("throw_angle"),
-                    hash40("throw_angle_stick_front"),
-                    hash40("throw_angle_stick_back")
-                ]).contains(&x2)
-                && owner_module_accessor.is_situation(*SITUATION_KIND_AIR) {
-                    return -42.0;
-                }
+            // dis som crazy shit
+            wner_module_accessor.is_situation(*SITUATION_KIND_AIR); {  
+                param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_axe"), hash40("throw_angle"), -42.0);
+                param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_axe"), hash40("throw_angle_stick_front"), -42.0);
+                param_config::update_float_2(fighter_kind, DEFAULT_SLOTS, hash40("param_axe"), hash40("throw_angle_stick_back"), -42.0);
             }
+            //if x1 == hash40("param_axe") {
+            //    if (&[
+            //        hash40("throw_angle"),
+            //        hash40("throw_angle_stick_front"),
+            //        hash40("throw_angle_stick_back")
+            //    ]).contains(&x2)
+            //    && owner_module_accessor.is_situation(*SITUATION_KIND_AIR) {
+            //        return -42.0;
+            //    }
+            //}
         }
 
     }
 
-    original!()(x0, x1, x2)
+    //original!()(x0, x1, x2)
 }
 
 // #[skyline::hook(offset=0x165d0b0, inline)]
